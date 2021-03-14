@@ -68,7 +68,7 @@ if __name__ == '__main__':
             for s in tqdm(range(int(video_duration))):
                 for t in range(fps):
                     st = s + t/fps
-                    command = f'ffmpeg -ss {st} -i {full_path} -vframes 1 {args.output}/{file_name}_{s:03d}_{t:03d}.jpg'
+                    command = f'ffmpeg -ss {st} -i {full_path} -qmin 1 -q:v 1 -vframes 1 {args.output}/{file_name}_{s:03d}_{t:03d}.jpg'
                     result = run_shell_command(command)
 
             if args.to_video:
