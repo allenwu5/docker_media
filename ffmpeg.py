@@ -48,7 +48,6 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    print(args)
     shutil.rmtree(args.output, ignore_errors=True)
     Path(args.output).mkdir(parents=True, exist_ok=True)
 
@@ -57,21 +56,29 @@ if __name__ == '__main__':
         Path(args.to_video).mkdir(parents=True, exist_ok=True)
     for full_path, sub_path, file_name, file_ext in tqdm(list_files(args.input)):
         if file_ext in set(['.avi', '.mp4']):
-            print(f'Processing {full_path}')
+            print(f'To images: {full_path}')
 
             command = f'ffprobe -i {full_path} -v quiet -print_format json -show_format -show_streams -hide_banner'
             result = run_shell_command(command)
-            print(result)
             video_duration = float(result['streams'][0]['duration'])
 
             fps = args.fps
             for s in tqdm(range(int(video_duration))):
+                seek_command = ''
+                to_image_command = ''
+                count = 0
                 for t in range(fps):
                     st = s + t/fps
-                    command = f'ffmpeg -ss {st} -i {full_path} -qmin 1 -q:v 1 -vframes 1 {args.output}/{file_name}_{s:03d}_{t:03d}.jpg'
-                    result = run_shell_command(command)
+                    seek_command += f' -ss {st} -i {full_path}'
+                    to_image_command += f' -map {count}:v -qmin 1 -q:v 1 -vframes 1 {args.output}/{file_name}_{st:08.2f}.jpg'
+                    count += 1
+                result = run_shell_command(
+                    f'ffmpeg {seek_command} {to_image_command}')
 
-            if args.to_video:
+    if args.to_video:
+        for full_path, sub_path, file_name, file_ext in tqdm(list_files(args.input)):
+            if file_ext in set(['.avi', '.mp4']):
+                print(f'To video: {full_path}')
                 command = f'ffmpeg -framerate {fps} -pattern_type glob -i "{args.output}/{file_name}_*.jpg" {args.to_video}/{file_name}.mp4'
                 result = run_shell_command(command)
     print(f'Output file count:{len(list_files(args.output))}')
