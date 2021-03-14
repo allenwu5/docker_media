@@ -16,7 +16,7 @@ RUN python get-pip.py
 
 RUN useradd -m user
 
-ADD vlc.py .
+ADD *.py .
 ADD requirements.txt .
 RUN pip install -r requirements.txt
 
