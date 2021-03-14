@@ -1,7 +1,7 @@
-FROM ubuntu:18.04
+FROM ubuntu:20.04
 
 RUN apt-get update
-RUN apt-get install -y vlc
+# RUN apt-get install -y vlc
 RUN apt-get install -y ffmpeg
 RUN apt-get install -y git
 RUN apt-get install -y python3.8
