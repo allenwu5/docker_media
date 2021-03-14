@@ -1,13 +1,11 @@
 import argparse
-import shlex
-import subprocess
+import shutil
 from os import listdir
 from os.path import isdir, join, splitext
-
-from tqdm import tqdm
-import shutil
 from pathlib import Path
+
 import ffmpeg
+from tqdm import tqdm
 
 
 def list_files(dir_path, sub_path=None):
@@ -43,27 +41,17 @@ if __name__ == '__main__':
         if file_ext in set(['.avi', '.mp4']):
             try:
                 print(f'Processing {full_path}')
-                # command = f'vlc {full_path} --intf=dummy --vout=vdummy --video-filter=scene --scene-format=jpg \
-                #      --fps-fps=5 --rate={args.rate} --scene-ratio=1 --scene-prefix={file_name}_ --scene-path={args.output} --codec avcodec,none vlc://quit'
-                # command = f'ffmpeg -i {full_path} -vf fps={args.rate} {args.output}/{file_name}_%8d.jpg'
 
-                # command = f'ffprobe -v error -select_streams v:0 -show_entries stream=nb_frames -of default=nokey=1:noprint_wrappers=1 {full_path}'
-                # status = subprocess.run(shlex.split(
-                #         command), check=True, capture_output=True)
-                # print(status)
-
-    # https://github.com/kkroening/ffmpeg-python/blob/master/examples/README.md#examples
+                # https://github.com/kkroening/ffmpeg-python/blob/master/examples/README.md#examples
                 probe = ffmpeg.probe(full_path)
                 video_stream = next(
                     (stream for stream in probe['streams'] if stream['codec_type'] == 'video'), None)
                 video_duration = float(video_stream['duration'])
-                # print(video_stream)
-                # continue
 
-                for s in tqdm(range(int(video_duration*args.rate))):
-                    t = s/args.rate
-                    ffmpeg.input(full_path, ss=t).filter('fps', fps=5, round='up').output(
-                        f'{args.output}/{file_name}_{t}_%3d.jpg', vframes=5).run(quiet=True)
+                fps = args.rate
+                for s in tqdm(range(int(video_duration))):
+                    ffmpeg.input(full_path, ss=s).filter('fps', fps=fps, round='up').output(
+                        f'{args.output}/{file_name}_{s:03d}_%3d.jpg', vframes=fps).run(quiet=True)
             except Exception as e:
                 print(e)
 
