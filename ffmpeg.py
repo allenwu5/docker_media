@@ -1,38 +1,22 @@
 import argparse
-import json
-import shlex
 import shutil
-import subprocess
-from os import listdir
-from os.path import isdir, join, splitext
 from pathlib import Path
 
 from tqdm import tqdm
 
-
-def list_files(dir_path, sub_path=None):
-    files = []
-    for file_name in sorted(listdir(dir_path)):
-        full_path = join(dir_path, file_name)
-        if isdir(full_path):
-            new_sub_path = join(
-                sub_path, file_name) if sub_path else file_name
-            files += list_files(full_path, new_sub_path)
-        else:
-            file_name, file_ext = splitext(file_name)
-            files.append((full_path, sub_path, file_name, file_ext))
-    return files
+from common import list_files, run_shell_command
 
 
-def run_shell_command(command):
-    # https://docs.python.org/3.8/library/subprocess.html
-    result = subprocess.run(shlex.split(
-        command), capture_output=True)
-    if result.stdout:
-        output = json.loads(result.stdout)
-    else:
-        output = ''
-    return output
+def get_video_info(full_path):
+    command = f'ffprobe -i {full_path} -v quiet -print_format json -show_format -show_streams -hide_banner'
+    result = run_shell_command(command)
+    video_streams = [s for s in result['streams']
+                     if s['codec_type'] == 'video']
+    video_stream = video_streams[0]
+    video_duration = float(video_stream['duration'])
+    video_frames = int(video_stream['nb_frames'])
+    video_fps = video_frames / video_duration
+    return video_duration, video_fps
 
 
 if __name__ == '__main__':
@@ -45,12 +29,15 @@ if __name__ == '__main__':
                         help="")
     parser.add_argument("--to-video",
                         help="")
+    parser.add_argument("--tool", default="vlc",
+                        help="")
 
     args = parser.parse_args()
 
     shutil.rmtree(args.output, ignore_errors=True)
     Path(args.output).mkdir(parents=True, exist_ok=True)
 
+    sample_fps = args.fps
     if args.to_video:
         shutil.rmtree(args.to_video, ignore_errors=True)
         Path(args.to_video).mkdir(parents=True, exist_ok=True)
@@ -58,27 +45,24 @@ if __name__ == '__main__':
         if file_ext in set(['.avi', '.mp4']):
             print(f'To images: {full_path}')
 
-            command = f'ffprobe -i {full_path} -v quiet -print_format json -show_format -show_streams -hide_banner'
-            result = run_shell_command(command)
-            video_duration = float(result['streams'][0]['duration'])
+            video_duration, video_fps = get_video_info(full_path)
 
-            fps = args.fps
-            for s in tqdm(range(int(video_duration))):
-                seek_command = ''
-                to_image_command = ''
-                count = 0
-                for t in range(fps):
-                    st = s + t/fps
-                    seek_command += f' -ss {st} -i {full_path}'
-                    to_image_command += f' -map {count}:v -qmin 1 -q:v 1 -vframes 1 {args.output}/{file_name}_{st:08.2f}.jpg'
-                    count += 1
-                result = run_shell_command(
-                    f'ffmpeg {seek_command} {to_image_command}')
+            step = video_fps / sample_fps
+            if args.tool == "ffmpeg":
+                for s in tqdm(range(int(video_duration))):
+                    for t in range(sample_fps):
+                        st = s + t/sample_fps
+                        command = f'ffmpeg -ss {st} -i {full_path} -qmin 1 -q:v 1 -vframes 1 {args.output}/{file_name}_{st:08.2f}.jpg'
+                        result = run_shell_command(command)
+            elif args.tool == "vlc":
+                command = f"vlc {full_path} --intf=dummy --rate=5 --video-filter=scene --vout=dummy --scene-format=jpg \
+                    --scene-ratio={step} --scene-path={args.output}  --scene-prefix={file_name}_ vlc://quit"
+                result = run_shell_command(command)
 
+    print(f'Output file count:{len(list_files(args.output))}')
     if args.to_video:
         for full_path, sub_path, file_name, file_ext in tqdm(list_files(args.input)):
             if file_ext in set(['.avi', '.mp4']):
                 print(f'To video: {full_path}')
-                command = f'ffmpeg -framerate {fps} -pattern_type glob -i "{args.output}/{file_name}_*.jpg" {args.to_video}/{file_name}.mp4'
+                command = f'ffmpeg -framerate {sample_fps} -pattern_type glob -i "{args.output}/{file_name}_*.jpg" {args.to_video}/{file_name}.mp4'
                 result = run_shell_command(command)
-    print(f'Output file count:{len(list_files(args.output))}')
