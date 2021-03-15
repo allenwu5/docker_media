@@ -22,7 +22,7 @@ RUN useradd -m user
 ADD requirements.txt .
 RUN pip install -r requirements.txt
 
-ADD *.py .
+ADD *.py ./
 
 # Some libraries are not supposed to be run as root.
 USER user

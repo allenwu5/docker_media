@@ -64,6 +64,7 @@ if __name__ == '__main__':
     if args.to_video:
         for full_path, sub_path, file_name, file_ext in tqdm(list_files(args.input)):
             if file_ext in set(['.avi', '.mp4']):
-                print(f'To video: {full_path}')
-                command = f'ffmpeg -framerate {sample_fps} -pattern_type glob -i "{args.output}/{file_name}_*.jpg" {args.to_video}/{file_name}.mp4'
+                to_video_name = f'{args.to_video}/{file_name}_{sample_fps}fps.mp4'
+                print(f'To video: {to_video_name}')
+                command = f'ffmpeg -framerate {sample_fps} -pattern_type glob -i "{args.output}/{file_name}_*.jpg" {to_video_name}'
                 result = run_shell_command(command)
