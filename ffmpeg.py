@@ -1,4 +1,5 @@
 import argparse
+import math
 import shutil
 from pathlib import Path
 
@@ -47,7 +48,7 @@ if __name__ == '__main__':
 
             video_duration, video_fps = get_video_info(full_path)
 
-            step = video_fps / sample_fps
+            step = math.ceil(video_fps / sample_fps)
             if args.tool == "ffmpeg":
                 for s in tqdm(range(int(video_duration))):
                     for t in range(sample_fps):
